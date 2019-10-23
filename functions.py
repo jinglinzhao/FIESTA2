@@ -9,10 +9,10 @@ alpha 	=	0.5
 
 ####################################################################
 
-def FT(signal, spacing):
-	oversample 	= 4 										# oversample folds; to be experiemented further
+def ft(signal, spacing):
+	oversample 	= 6 										# oversample folds; to be experiemented further
 	n 			= 2**(int(np.log(signal.size)/np.log(2))+1 + oversample)
-	fourier 	= np.fft.rfft(signal, n, norm='ortho')
+	fourier 	= np.fft.rfft(signal, n)
 	freq 		= np.fft.rfftfreq(n, d=spacing)
 	power 		= np.abs(fourier)**2
 	phase 		= np.angle(fourier)
@@ -67,18 +67,19 @@ def plot_overview(x, ccf, power, phase, phase_tpl, freq, freq_HL, freq_HN):
 	plt.ylabel('RV [m/s]')
 	plt.grid(True)
 
-	# calculate the "averaged" radial veflocity shift in Fourier space
-	freq_full 		= np.concatenate((-freq[idx][:0:-1], freq[idx]), axis=None) 
-	diff_phase_full = np.concatenate((-diff_phase[idx][:0:-1], diff_phase[idx]), axis=None)
-	power_full		= np.concatenate((power[idx][:0:-1], power[idx]), axis=None)  
-	coeff 			= np.polyfit(freq_full, diff_phase_full, 1, w=power_full**0.5)
-	RV 				= -coeff[0] / (2*np.pi) * 1000
-	coeff 			= np.polyfit(freq[idx_L], diff_phase[idx_L], 1, w=power[idx_L]**0.5)
-	RV_L 			= -coeff[0] / (2*np.pi) * 1000
-	coeff 			= np.polyfit(freq[idx_H], diff_phase[idx_H], 1, w=power[idx_H]**0.5)
-	RV_H 			= -coeff[0] / (2*np.pi) * 1000    
 
-	return RV, RV_L, RV_H
+
+####################################################################
+
+# calculate the "averaged" radial veflocity shift between freq1 and freq2 in Fourier space
+
+def rv_ft(freq1, freq2, freq, diff_phase, power):
+
+	idx 	= (freq >= freq1) & (freq <= freq2)
+	coeff 	= np.polyfit(freq[idx], diff_phase[idx], 1, w=power[idx]**0.5)
+	RV_FT 	= -coeff[0] / (2*np.pi) * 1000
+
+	return RV_FT
 
 ####################################################################
 
