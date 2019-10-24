@@ -9,175 +9,181 @@ from functions import *
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 
+Section = np.arange(10,13)
+bic = np.zeros(len(Section))
+n_bic = 0
 
-N_section 	= 7											# equally divide power spectrum into #N_section
-freq_HN 	= 0.1563									# higher limit of frequency range
+for N_section in Section:											# equally divide power spectrum into #N_section
+	freq_HN 	= 0.1563									# higher limit of frequency range
 
-# jitter 		= np.loadtxt('/Volumes/DataSSD/SOAP_2/outputs/02.01/RV.dat')
-# jitter 		= (jitter - np.mean(jitter))
+	# jitter 		= np.loadtxt('/Volumes/DataSSD/SOAP_2/outputs/02.01/RV.dat')
+	# jitter 		= (jitter - np.mean(jitter))
 
-FILE 		= sorted(glob.glob('./fits/*.fits'))
-N_file 		= len(FILE)
-hdulist     = fits.open(FILE[0])
-CCF_tpl     = 1 - hdulist[0].data 						# flip the line profile
-V 			= (np.arange(401)-200)/10					# CCF Velocity grid
-idx_ccf		= (abs(V) <= 10)
-v 			= V[idx_ccf]
-ccf_tpl 	= CCF_tpl[idx_ccf]
-power_tpl, phase_tpl, freq = ft(ccf_tpl, 0.1)
+	FILE 		= sorted(glob.glob('./fits/*.fits'))
+	N_file 		= len(FILE)
+	hdulist     = fits.open(FILE[0])
+	CCF_tpl     = 1 - hdulist[0].data 						# flip the line profile
+	V 			= (np.arange(401)-200)/10					# CCF Velocity grid
+	idx_ccf		= (abs(V) <= 10)
+	v 			= V[idx_ccf]
+	ccf_tpl 	= CCF_tpl[idx_ccf]
+	power_tpl, phase_tpl, freq = ft(ccf_tpl, 0.1)
 
-idx 		= (freq <= freq_HN)
+	idx 		= (freq <= freq_HN)
 
-n_idx 		= len(freq[idx])
-power_int 	= np.zeros(n_idx) 							# integrated power
-for i in range(n_idx):
-	power_int[i] = np.trapz(power_tpl[:i+1], x=freq[:i+1])
+	n_idx 		= len(freq[idx])
+	power_int 	= np.zeros(n_idx) 							# integrated power
+	for i in range(n_idx):
+		power_int[i] = np.trapz(power_tpl[:i+1], x=freq[:i+1])
 
-per_portion = power_int[n_idx-1]/N_section
-freq_LH 	= np.zeros(N_section+1)
+	per_portion = power_int[n_idx-1]/N_section
+	freq_LH 	= np.zeros(N_section+1)
 
-# Section 1: [0, freq_LH[1]; section 2: [freq_LH[1], freq_LH[2]]...
-for i in range(N_section):
-	freq_LH[i] = max(freq[idx][power_int<=per_portion*i])
-freq_LH[N_section] = freq_HN
-
-
-#------------------#
-# Line deformation #
-#------------------#
-
-RV_gauss 	= np.zeros(N_file)							# RV derived from a Gaussian fit
-RV_FT 		= np.zeros((N_file, N_section))
-delta_RV 	= np.zeros((N_file, N_section))
-
-# plt.rcParams.update({'font.size': 12})
-# fig, axes 	= plt.subplots(figsize=(12, 12))
-
-for n in range(N_file):
-	hdulist     = fits.open(FILE[n])
-	CCF         = 1 - hdulist[0].data 					# flip the line profile
-	ccf 		= CCF[idx_ccf]
-	popt, pcov 	= curve_fit(gaussian, v, ccf)
-	RV_gauss[n] = popt[1]
-
-	power, phase, freq = ft(ccf, 0.1)
+	# Section 1: [0, freq_LH[1]; section 2: [freq_LH[1], freq_LH[2]]...
 	for i in range(N_section):
-		RV_FT[n, i] = rv_ft(freq_LH[i], freq_LH[i+1], freq, phase-phase_tpl, power_tpl)
-		delta_RV[n, i] = RV_FT[n, i] - RV_gauss[n] * 1000
-
-mean_Gaussian = np.mean(RV_gauss)
-mean_delta_RV = np.mean(delta_RV)
-RV_gauss = (RV_gauss - np.mean(RV_gauss))*1000
-delta_RV = delta_RV - np.mean(delta_RV)
-
-#---------------------------#
-# Multiple Regression Model # 
-#---------------------------#
-
-from sklearn import linear_model
-regr = linear_model.LinearRegression()
-
-msk = np.random.rand(len(RV_gauss)) < 0.2
-# msk = (np.arange(100) < 50)
-train_x = delta_RV[msk, :]
-train_y = RV_gauss[msk]
-test_x = delta_RV[~msk, :]
-test_y = RV_gauss[~msk]
+		freq_LH[i] = max(freq[idx][power_int<=per_portion*i])
+	freq_LH[N_section] = freq_HN
 
 
-regr.fit (train_x, train_y)
-# The coefficients
-print ('Coefficients: ', regr.coef_)
-print ('Intercept: ', regr.intercept_)
+	#------------------#
+	# Line deformation #
+	#------------------#
 
-#------------#
-# Prediction # 
-#------------#
+	RV_gauss 	= np.zeros(N_file)							# RV derived from a Gaussian fit
+	RV_FT 		= np.zeros((N_file, N_section))
+	delta_RV 	= np.zeros((N_file, N_section))
+
+	# plt.rcParams.update({'font.size': 12})
+	# fig, axes 	= plt.subplots(figsize=(12, 12))
+
+	for n in range(N_file):
+		hdulist     = fits.open(FILE[n])
+		CCF         = 1 - hdulist[0].data 					# flip the line profile
+		ccf 		= CCF[idx_ccf]
+		popt, pcov 	= curve_fit(gaussian, v, ccf)
+		RV_gauss[n] = popt[1]
+
+		power, phase, freq = ft(ccf, 0.1)
+		for i in range(N_section):
+			RV_FT[n, i] = rv_ft(freq_LH[i], freq_LH[i+1], freq, phase-phase_tpl, power_tpl)
+			delta_RV[n, i] = RV_FT[n, i] - RV_gauss[n] * 1000
+
+	mean_Gaussian = np.mean(RV_gauss)
+	mean_delta_RV = np.mean(delta_RV)
+	RV_gauss = (RV_gauss - np.mean(RV_gauss))*1000
+	delta_RV = delta_RV - np.mean(delta_RV)
+
+	#---------------------------#
+	# Multiple Regression Model # 
+	#---------------------------#
+
+	from sklearn import linear_model
+	regr = linear_model.LinearRegression()
+
+	msk = np.random.rand(len(RV_gauss)) < 0.2
+	train_x = delta_RV[msk, :]
+	train_y = RV_gauss[msk]
+	# test_x = delta_RV[~msk, :]
+	# test_y = RV_gauss[~msk]
 
 
-TEST 		= sorted(glob.glob('./test/*.fits'))
-RV_gauss 	= np.zeros(len(TEST))
-RV_FT 		= np.zeros((len(TEST), N_section))
-delta_RV 	= np.zeros((len(TEST), N_section))
+	regr.fit (train_x, train_y)
+	# The coefficients
+	print ('Coefficients: ', regr.coef_)
+	print ('Intercept: ', regr.intercept_)
+
+	#------------#
+	# Prediction # 
+	#------------#
 
 
-for n in range(len(TEST)):
-	hdulist     = fits.open(TEST[n])
-	CCF         = 1 - hdulist[0].data 					# flip the line profile
-	ccf 		= CCF[idx_ccf]
-	popt, pcov 	= curve_fit(gaussian, v, ccf)
-	RV_gauss[n] = popt[1]
-	power, phase, freq = ft(ccf, 0.1)
-	for i in range(N_section):
-		RV_FT[n, i] = rv_ft(freq_LH[i], freq_LH[i+1], freq, phase-phase_tpl, power_tpl)
-		delta_RV[n, i] = RV_FT[n, i] - RV_gauss[n] * 1000
-RV_gauss = (RV_gauss - mean_Gaussian)*1000
-delta_RV = delta_RV - mean_delta_RV
-test_x = delta_RV
-test_y = RV_gauss
-
-y_hat= regr.predict(delta_RV)
-rss = np.mean((y_hat - test_y) ** 2)
-print('rms: %.2f' % rss**0.5)
+	TEST 		= sorted(glob.glob('./test/*.fits'))
+	RV_gauss 	= np.zeros(len(TEST))
+	RV_FT 		= np.zeros((len(TEST), N_section))
+	delta_RV 	= np.zeros((len(TEST), N_section))
 
 
-# #############################################################################
-# Compute paths
+	for n in range(len(TEST)):
+		hdulist     = fits.open(TEST[n])
+		CCF         = 1 - hdulist[0].data 					# flip the line profile
+		ccf 		= CCF[idx_ccf]
+		popt, pcov 	= curve_fit(gaussian, v, ccf)
+		RV_gauss[n] = popt[1]
+		power, phase, freq = ft(ccf, 0.1)
+		for i in range(N_section):
+			RV_FT[n, i] = rv_ft(freq_LH[i], freq_LH[i+1], freq, phase-phase_tpl, power_tpl)
+			delta_RV[n, i] = RV_FT[n, i] - RV_gauss[n] * 1000
+	RV_gauss = (RV_gauss - mean_Gaussian)*1000
+	delta_RV = delta_RV - mean_delta_RV
+	test_x = delta_RV
+	test_y = RV_gauss
 
-n_alphas = 200
-alphas = np.logspace(-10, -2, n_alphas)
+	y_hat= regr.predict(delta_RV)
+	rss = np.mean((y_hat - test_y) ** 2)
+	print('rms: %.2f' % rss**0.5)
+	# Explained variance score: 1 is perfect prediction
+	print('Variance score: %.2f' % regr.score(test_x, test_y))
 
-coefs = []
-for a in alphas:
-    ridge = linear_model.Ridge(alpha=a, fit_intercept=False)
-    ridge.fit(train_x, train_y)
-    coefs.append(ridge.coef_)
+	if 0:
+		# #############################################################################
+		# Compute paths
 
-# #############################################################################
-# Display results
+		n_alphas = 200
+		alphas = np.logspace(-10, -2, n_alphas)
 
-ax = plt.gca()
+		coefs = []
+		for a in alphas:
+		    ridge = linear_model.Ridge(alpha=a, fit_intercept=False)
+		    ridge.fit(train_x, train_y)
+		    coefs.append(ridge.coef_)
 
-ax.plot(alphas, coefs)
-ax.set_xscale('log')
-# ax.set_xlim(ax.get_xlim()[::-1])  # reverse axis
-plt.xlabel('alpha')
-plt.ylabel('weights')
-plt.title('Ridge coefficients as a function of the regularization')
-plt.axis('tight')
+		# #############################################################################
+		# Display results
+
+		ax = plt.gca()
+
+		ax.plot(alphas, coefs)
+		ax.set_xscale('log')
+		# ax.set_xlim(ax.get_xlim()[::-1])  # reverse axis
+		plt.xlabel('alpha')
+		plt.ylabel('weights')
+		plt.title('Ridge coefficients as a function of the regularization')
+		plt.axis('tight')
+		plt.show()
+
+
+	#PLOT
+	fig1 = plt.figure(1)
+	frame1=fig1.add_axes((.1,.3,.8,.6))
+	plt.title('Section = %d, rms = %.2f' % (N_section, rss**0.5))
+	plt.plot(test_y, y_hat,'.b', alpha=0.5) #Noisy data
+	plt.ylabel('Prediction')
+	frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
+	plt.grid()
+
+	#Residual plot
+	frame2=fig1.add_axes((.1,.1,.8,.2))        
+	plt.plot(test_y, y_hat-test_y,'r.',alpha=0.5)
+	plt.xlabel('Test data')
+	plt.ylabel('Residual')
+	plt.grid()
+	plt.savefig('./outputs/Redidual%d' % N_section)
+	plt.close('all')
+
+
+	#--------------------------------#
+	# Bayesian information criterion # 
+	#--------------------------------#
+	# https://en.wikipedia.org/wiki/Bayesian_information_criterion
+	n = len(test_y)
+	k = N_section + 1
+	bic[n_bic] = n*np.log(error_variance(test_y, y_hat)) + k*np.log(n)
+	n_bic += 1
+
+plt.plot(np.arange(2,13), np.concatenate([bic1, bic]))
+plt.xlabel('# sections')
+plt.ylabel('bic')
 plt.show()
-
-
-# Explained variance score: 1 is perfect prediction
-print('Variance score: %.2f' % regr.score(test_x, test_y))
-
-
-
-#PLOT
-fig1 = plt.figure(1)
-frame1=fig1.add_axes((.1,.3,.8,.6))
-plt.title('Section = %d' % N_section)
-plt.plot(test_y, y_hat,'.b', alpha=0.5) #Noisy data
-plt.ylabel('Prediction')
-frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
-plt.grid()
-
-#Residual plot
-frame2=fig1.add_axes((.1,.1,.8,.2))        
-plt.plot(test_y, y_hat-test_y,'r.',alpha=0.5)
-plt.xlabel('Test data')
-plt.ylabel('Residual')
-plt.grid()
-plt.savefig('./outputs/Redidual%d' % N_section)
-plt.close('all')
-
-
-#--------------------------------#
-# Bayesian information criterion # 
-#--------------------------------#
-
-
-
 
 
 # plt.savefig('./outputs/Overview.png')

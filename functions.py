@@ -113,6 +113,6 @@ def plot_correlation(RV_gauss, RV, RV_L, RV_H):
 
 #  unbiased form of approximating the error variance (therefore len(x)-1)
 
-def var(x):
-	return 1/(len(x)-1) * sum((x-np.mean(x))**2)
+def error_variance(y_test, y_pred):
+	return 1/(len(y_test)-1) * sum((y_test-y_pred)**2)
 
