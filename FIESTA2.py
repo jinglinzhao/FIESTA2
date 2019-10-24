@@ -9,32 +9,36 @@ from functions import *
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 
-Section = np.arange(10,13)
+Section = np.arange(2,20)
 bic = np.zeros(len(Section))
 n_bic = 0
 
+
+freq_HN 	= 0.1563									# higher limit of frequency range
+
+# jitter 		= np.loadtxt('/Volumes/DataSSD/SOAP_2/outputs/02.01/RV.dat')
+# jitter 		= (jitter - np.mean(jitter))
+
+FILE 		= sorted(glob.glob('./fits/*.fits'))
+N_file 		= len(FILE)
+hdulist     = fits.open(FILE[0])
+CCF_tpl     = 1 - hdulist[0].data 						# flip the line profile
+V 			= (np.arange(401)-200)/10					# CCF Velocity grid
+idx_ccf		= (abs(V) <= 10)
+v 			= V[idx_ccf]
+ccf_tpl 	= CCF_tpl[idx_ccf]
+power_tpl, phase_tpl, freq = ft(ccf_tpl, 0.1)
+
+idx 		= (freq <= freq_HN)
+
+n_idx 		= len(freq[idx])
+power_int 	= np.zeros(n_idx) 							# integrated power
+for i in range(n_idx):
+	power_int[i] = np.trapz(power_tpl[:i+1], x=freq[:i+1])
+
+
 for N_section in Section:											# equally divide power spectrum into #N_section
-	freq_HN 	= 0.1563									# higher limit of frequency range
-
-	# jitter 		= np.loadtxt('/Volumes/DataSSD/SOAP_2/outputs/02.01/RV.dat')
-	# jitter 		= (jitter - np.mean(jitter))
-
-	FILE 		= sorted(glob.glob('./fits/*.fits'))
-	N_file 		= len(FILE)
-	hdulist     = fits.open(FILE[0])
-	CCF_tpl     = 1 - hdulist[0].data 						# flip the line profile
-	V 			= (np.arange(401)-200)/10					# CCF Velocity grid
-	idx_ccf		= (abs(V) <= 10)
-	v 			= V[idx_ccf]
-	ccf_tpl 	= CCF_tpl[idx_ccf]
-	power_tpl, phase_tpl, freq = ft(ccf_tpl, 0.1)
-
-	idx 		= (freq <= freq_HN)
-
-	n_idx 		= len(freq[idx])
-	power_int 	= np.zeros(n_idx) 							# integrated power
-	for i in range(n_idx):
-		power_int[i] = np.trapz(power_tpl[:i+1], x=freq[:i+1])
+	print('\n%d' %N_section)
 
 	per_portion = power_int[n_idx-1]/N_section
 	freq_LH 	= np.zeros(N_section+1)
@@ -80,13 +84,11 @@ for N_section in Section:											# equally divide power spectrum into #N_sect
 	from sklearn import linear_model
 	regr = linear_model.LinearRegression()
 
-	msk = np.random.rand(len(RV_gauss)) < 0.2
+	msk = np.random.rand(len(RV_gauss)) < 0.5
 	train_x = delta_RV[msk, :]
 	train_y = RV_gauss[msk]
 	# test_x = delta_RV[~msk, :]
 	# test_y = RV_gauss[~msk]
-
-
 	regr.fit (train_x, train_y)
 	# The coefficients
 	print ('Coefficients: ', regr.coef_)
@@ -180,10 +182,11 @@ for N_section in Section:											# equally divide power spectrum into #N_sect
 	bic[n_bic] = n*np.log(error_variance(test_y, y_hat)) + k*np.log(n)
 	n_bic += 1
 
-plt.plot(np.arange(2,13), np.concatenate([bic1, bic]))
+plt.plot(Section, bic)
 plt.xlabel('# sections')
 plt.ylabel('bic')
-plt.show()
+plt.savefig('./outputs/bic.png')
+# plt.show()
 
 
 # plt.savefig('./outputs/Overview.png')
