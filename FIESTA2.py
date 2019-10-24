@@ -121,8 +121,6 @@ rss = np.mean((y_hat - test_y) ** 2)
 print('rms: %.2f' % rss**0.5)
 
 
-
-
 # #############################################################################
 # Compute paths
 
@@ -132,33 +130,51 @@ alphas = np.logspace(-10, -2, n_alphas)
 coefs = []
 for a in alphas:
     ridge = linear_model.Ridge(alpha=a, fit_intercept=False)
-    ridge.fit(X, y)
+    ridge.fit(train_x, train_y)
     coefs.append(ridge.coef_)
 
 # #############################################################################
+# Display results
 
+ax = plt.gca()
+
+ax.plot(alphas, coefs)
+ax.set_xscale('log')
+# ax.set_xlim(ax.get_xlim()[::-1])  # reverse axis
+plt.xlabel('alpha')
+plt.ylabel('weights')
+plt.title('Ridge coefficients as a function of the regularization')
+plt.axis('tight')
+plt.show()
 
 
 # Explained variance score: 1 is perfect prediction
 print('Variance score: %.2f' % regr.score(test_x, test_y))
 
-plt.plot(test_y, y_hat, '.')
-plt.show()
-
-plt.plot(test_y, y_hat-test_y, '.')
-plt.show()
 
 
+#PLOT
+fig1 = plt.figure(1)
+frame1=fig1.add_axes((.1,.3,.8,.6))
+plt.title('Section = %d' % N_section)
+plt.plot(test_y, y_hat,'.b', alpha=0.5) #Noisy data
+plt.ylabel('Prediction')
+frame1.set_xticklabels([]) #Remove x-tic labels for the first frame
+plt.grid()
+
+#Residual plot
+frame2=fig1.add_axes((.1,.1,.8,.2))        
+plt.plot(test_y, y_hat-test_y,'r.',alpha=0.5)
+plt.xlabel('Test data')
+plt.ylabel('Residual')
+plt.grid()
+plt.savefig('./outputs/Redidual%d' % N_section)
+plt.close('all')
 
 
-
-
-
-
-
-
-
-
+#--------------------------------#
+# Bayesian information criterion # 
+#--------------------------------#
 
 
 

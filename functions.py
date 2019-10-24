@@ -108,3 +108,11 @@ def plot_correlation(RV_gauss, RV, RV_L, RV_H):
 	plt.title(r'$k$ = %.2f, $\rho$ = %.2f'%(b0, r))
 	plt.xlabel(r'$RV_{Gaussian}$ [m/s]')
 	plt.ylabel(r'$RV_{FT,H}$ [m/s]')	
+
+####################################################################
+
+#  unbiased form of approximating the error variance (therefore len(x)-1)
+
+def var(x):
+	return 1/(len(x)-1) * sum((x-np.mean(x))**2)
+
